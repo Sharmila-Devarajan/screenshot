@@ -12,9 +12,11 @@ from io import BytesIO
 from datetime import datetime
 import json
 import uuid
+import requests
 
 class ScreenshotApp:
     def __init__(self, root):
+        
         self.root = root
         self.root.title("ES Screenshot Tool")
         self.root.geometry("1024x768")
@@ -416,8 +418,8 @@ class ScreenshotApp:
             }
             
             # Print the payload_json to terminal
-            print(json.dumps(payload_json))
-
+            # print(json.dumps(payload_json))
+            result= self.make_api_call(payload_json)
             self.save_payload_to_file(payload_json)
             
             # Add to screenshots list (at the beginning)
@@ -536,7 +538,23 @@ class ScreenshotApp:
     
     def on_close(self):
         self.root.destroy()
+    def make_api_call(self, payload):
+        try:
+            url = "http://localhost:8001/v1/chat"  # Replace with actual API endpoint
+            headers = {
+                "Content-Type": "application/json",
+            }
 
+            response = requests.post(url, json=payload, headers=headers)
+            print(response.json() ,"----11111")
+            # Check for HTTP errors (e.g., 4xx, 5xx)
+            response.raise_for_status()
+
+            return response.json()  # Return JSON response
+
+        except requests.exceptions.RequestException as e:
+            print("The error is:", str(e))
+            return None
 if __name__ == "__main__":
     root = tk.Tk()
     app = ScreenshotApp(root)
