@@ -14,11 +14,12 @@ import json
 import uuid
 import requests
 
+
 class ScreenshotApp:
     def __init__(self, root):
         
         self.root = root
-        self.root.title("ES Screenshot Tool")
+        self.root.title("Taro san")
         self.root.geometry("1024x768")
         self.root.resizable(True, True)
 
@@ -68,7 +69,7 @@ class ScreenshotApp:
         
         title_label = ttk.Label(
             main_frame, 
-            text="ES Screenshot Tool", 
+            text="Taro san", 
             font=("Arial", 16, "bold")
         )
         title_label.pack(pady=(0, 10))
@@ -485,21 +486,53 @@ class ScreenshotApp:
         if response_text is None:
             return  # Skip this entry if no API response
 
-        frame = ttk.Frame(self.screenshots_container)
-        frame.pack(fill=tk.X, pady=(0, 10))  
+        frame = ttk.Frame(self.screenshots_container, style="Frame.TFrame")
+        frame.pack(fill=tk.X, pady=10, padx=10)
 
-        # --- API Response First ---
-        if isinstance(response_text, dict):
-            response_text = json.dumps(response_text, indent=2)
+        # --- API Response Card ---
+        response_card = ttk.Frame(frame, padding=8, style="ResponseCard.TFrame")
+        response_card.pack(fill=tk.X, padx=5, pady=5)
+
+        # --- Response Box (Scrollable When Needed) ---
+        response_container = tk.Frame(response_card, bg="#f8f9fa", padx=8, pady=5, bd=1, relief="solid")
+        response_container.pack(fill=tk.X, pady=5)
+
+        text_scroll = tk.Scrollbar(response_container, orient="vertical")
+
+        response_content = tk.Text(
+            response_container,
+            wrap="word",
+            font=("Segoe UI", 10),
+            bg="#eef2f7",
+            fg="#333",
+            padx=10,
+            pady=5,
+            height=15,
+            width=80,
+            bd=0,
+            relief="flat"
+        )
         
-        response_box = scrolledtext.ScrolledText(frame, wrap=tk.WORD, width=80, height=8)
-        response_box.insert(tk.END, response_text)
-        response_box.configure(state='disabled')  # Make it read-only
-        response_box.pack(pady=5)
+        response_text_str = json.dumps(response_text, indent=2) if isinstance(response_text, dict) else response_text
+        response_content.insert("1.0", response_text_str)
+        response_content.config(state="disabled")
+
+        # Show scrollbar only if needed
+        def toggle_scrollbar():
+            response_content.update_idletasks()
+            if response_content.yview()[1] < 1.0:  # Check if scrolling is needed
+                text_scroll.pack(side="right", fill="y")
+                response_content.config(yscrollcommand=text_scroll.set)
+                text_scroll.config(command=response_content.yview)
+            else:
+                text_scroll.pack_forget()
+        
+        response_content.pack(side="left", fill="both", expand=True)
+        response_content.after(100, toggle_scrollbar)  # Delay to ensure size calculation
 
         # --- Screenshot Below ---
-        img = screenshot_data.get('image')
-        if img:  # Ensure there's an image before proceeding
+        img = screenshot_data.get("image")
+        if img:
             max_width = 600
             width, height = img.size
             ratio = min(max_width / width, 1.0)
@@ -507,32 +540,32 @@ class ScreenshotApp:
             new_height = int(height * ratio)
             thumbnail = img.resize((new_width, new_height), Image.LANCZOS)
             photo = ImageTk.PhotoImage(thumbnail)
-            screenshot_data['photo'] = photo
-            
-            image_label = ttk.Label(frame, image=photo)
+            screenshot_data["photo"] = photo
+
+            image_label = ttk.Label(frame, image=photo, background="#f8f9fa")
             image_label.image = photo
             image_label.pack(pady=5)
 
-        # --- Header for Open Button (Optional) ---
-        header_frame = ttk.Frame(frame)
-        header_frame.pack(fill=tk.X)
+        # --- Header & Open Button ---
+        title_frame = ttk.Frame(frame, style="TitleFrame.TFrame")
+        title_frame.pack(fill=tk.X, pady=5)
 
         title_label = ttk.Label(
-            header_frame,
+            title_frame,
             text=f"{screenshot_data['title']} - {screenshot_data['timestamp']}",
-            font=("Arial", 10, "bold")
+            font=("Arial", 10, "bold"),
         )
-        title_label.pack(side=tk.LEFT, pady=5)
+        title_label.pack(side=tk.LEFT, padx=5)
 
         open_button = ttk.Button(
-            header_frame,
+            title_frame,
             text="Open",
-            command=lambda path=screenshot_data['path']: self.open_screenshot(path)
+            command=lambda path=screenshot_data["path"]: self.open_screenshot(path),
         )
         open_button.pack(side=tk.RIGHT, padx=5)
 
         self.on_frame_configure(None)
-        
+    
     def open_screenshots_folder(self):
         try:
             if platform.system() == 'Windows':
