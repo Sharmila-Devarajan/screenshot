@@ -420,6 +420,15 @@ class ScreenshotApp:
             # Print the payload_json to terminal
             # print(json.dumps(payload_json))
             result= self.make_api_call(payload_json)
+            self.screenshots.insert(0, {
+                "image":screenshot,
+    "title": window_title,
+    "timestamp": datetime.now().strftime("%H:%M:%S"),
+    "path": file_path,
+    "base64": img_str,
+    "payload_json": payload_json, 
+    "api_response": result  # Save API call result here
+})
             self.save_payload_to_file(payload_json)
             
             # Add to screenshots list (at the beginning)
@@ -470,59 +479,60 @@ class ScreenshotApp:
     
     def add_screenshot_to_ui(self, index):
         screenshot_data = self.screenshots[index]
-        
+
+        # Check if API response exists, otherwise skip this entry
+        response_text = screenshot_data.get("api_response")
+        if response_text is None:
+            return  # Skip this entry if no API response
+
         frame = ttk.Frame(self.screenshots_container)
-        frame.pack(fill=tk.X, pady=(0, 10))
+        frame.pack(fill=tk.X, pady=(0, 10))  
+
+        # --- API Response First ---
+        if isinstance(response_text, dict):
+            response_text = json.dumps(response_text, indent=2)
         
+        response_box = scrolledtext.ScrolledText(frame, wrap=tk.WORD, width=80, height=8)
+        response_box.insert(tk.END, response_text)
+        response_box.configure(state='disabled')  # Make it read-only
+        response_box.pack(pady=5)
+
+        # --- Screenshot Below ---
+        img = screenshot_data.get('image')
+        if img:  # Ensure there's an image before proceeding
+            max_width = 600
+            width, height = img.size
+            ratio = min(max_width / width, 1.0)
+            new_width = int(width * ratio)
+            new_height = int(height * ratio)
+            thumbnail = img.resize((new_width, new_height), Image.LANCZOS)
+            photo = ImageTk.PhotoImage(thumbnail)
+            screenshot_data['photo'] = photo
+            
+            image_label = ttk.Label(frame, image=photo)
+            image_label.image = photo
+            image_label.pack(pady=5)
+
+        # --- Header for Open Button (Optional) ---
         header_frame = ttk.Frame(frame)
         header_frame.pack(fill=tk.X)
-        
+
         title_label = ttk.Label(
             header_frame,
             text=f"{screenshot_data['title']} - {screenshot_data['timestamp']}",
             font=("Arial", 10, "bold")
         )
         title_label.pack(side=tk.LEFT, pady=5)
-        
+
         open_button = ttk.Button(
             header_frame,
             text="Open",
             command=lambda path=screenshot_data['path']: self.open_screenshot(path)
         )
         open_button.pack(side=tk.RIGHT, padx=5)
-        
-        img = screenshot_data['image']
-        
-        max_width = 600
-        width, height = img.size
-        ratio = min(max_width / width, 1.0)
-        new_width = int(width * ratio)
-        new_height = int(height * ratio)
-        
-        thumbnail = img.resize((new_width, new_height), Image.LANCZOS)
-        photo = ImageTk.PhotoImage(thumbnail)
-        
-        screenshot_data['photo'] = photo
-        
-        image_label = ttk.Label(frame, image=photo)
-        image_label.image = photo
-        image_label.pack(pady=5)
-        
+
         self.on_frame_configure(None)
-    
-    def open_screenshot(self, path):
-        try:
-            if platform.system() == 'Windows':
-                os.startfile(path)
-            elif platform.system() == 'Darwin':  # macOS
-                import subprocess
-                subprocess.call(['open', path])
-            else:  # Linux
-                import subprocess
-                subprocess.call(['xdg-open', path])
-        except Exception as e:
-            self.update_status(f"Error opening file: {str(e)}", "error")
-    
+        
     def open_screenshots_folder(self):
         try:
             if platform.system() == 'Windows':
@@ -546,11 +556,11 @@ class ScreenshotApp:
             }
 
             response = requests.post(url, json=payload, headers=headers)
-            print(response.json() ,"----11111")
+            print(type(response.json()) ,"----11111")
             # Check for HTTP errors (e.g., 4xx, 5xx)
             response.raise_for_status()
 
-            return response.json()  # Return JSON response
+            return response.json().get("assistant_message") # Return JSON response
 
         except requests.exceptions.RequestException as e:
             print("The error is:", str(e))
