@@ -664,7 +664,7 @@ class ScreenshotApp:
             self.is_capturing = False
             self.hide_loader()  # Hide loader when capture is complete
     
-    def compress_image(self, image, quality=40, max_size=1024):
+    def compress_image(self, image, quality=100, max_size=1024):
         """Compress image to reduce file size while maintaining quality"""
         width, height = image.size
         
@@ -723,7 +723,7 @@ class ScreenshotApp:
         text_frame.pack(fill=tk.BOTH, expand=True)
 
         # --- Scrollbars ---
-        # v_scrollbar = ttk.Scrollbar(text_frame, orient="vertical")
+        v_scrollbar = ttk.Scrollbar(text_frame, orient="vertical")
         
         # --- Response Content with Markdown Formatting ---
         response_content = MarkdownText(
@@ -736,7 +736,7 @@ class ScreenshotApp:
             relief=tk.FLAT,
             padx=10,
             pady=5,
-            # yscrollcommand=v_scrollbar.set,
+            yscrollcommand=v_scrollbar.set,
           
         )
         
@@ -746,10 +746,10 @@ class ScreenshotApp:
         response_content.config(state=tk.DISABLED)  # Make it read-only
 
         # Pack elements
-        # v_scrollbar.config(command=response_content.yview)
+        v_scrollbar.config(command=response_content.yview)
       
         response_content.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-        # v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
       
         # --- Screenshot Below ---
         img = screenshot_data.get("image")
