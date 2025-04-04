@@ -14,6 +14,7 @@ import json
 import uuid
 import requests
 import re
+from itertools import cycle
 
 class MarkdownText(tk.Text):
     """A Text widget with improved Markdown rendering capabilities"""
@@ -390,26 +391,34 @@ class ScreenshotApp:
         if not self.is_capturing:
             self.handle_capture()
     
-    def create_loader(self):
-        """Create a loader overlay"""
-        self.loader_frame = tk.Frame(self.root, bg="#000000")
-        self.loader_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
+    def create_loader(self, parent):
+        """Create a localized loader overlay with a spinning animation centered on the screen"""
+        self.loader_frame = tk.Frame(parent, bg="#333333", relief="solid", bd=2)
+        self.loader_frame.place(relx=0.5, rely=0.5, anchor="center", width=100, height=100)
 
-        loader_label = ttk.Label(
-            self.loader_frame,
-            text="Processing...",
-            font=("Arial", 16, "bold"),
-            foreground=self.colors["text_light"],
-            background="#000000"
-        )
-        loader_label.pack(expand=True)
+        self.spinner_label = ttk.Label(self.loader_frame, background="#333333")
+        self.spinner_label.pack(expand=True)
+
+        # Create spinning animation
+        self.spinner_images = [
+            ImageTk.PhotoImage(Image.new("RGB", (20, 20), (255, 255, 255)).rotate(angle))
+            for angle in range(0, 360, 30)
+        ]
+        self.spinner_cycle = cycle(self.spinner_images)
+        self.animate_spinner()
+
+    def animate_spinner(self):
+        """Animate the spinner"""
+        if hasattr(self, "spinner_label"):
+            self.spinner_label.config(image=next(self.spinner_cycle))
+            self.spinner_label.after(100, self.animate_spinner)
 
     def show_loader(self):
-        """Show the loader"""
+        """Show the loader centered on the screen"""
         if not hasattr(self, "loader_frame"):
-            self.create_loader()
+            self.create_loader(self.root)  # Use the root window as the parent
         self.loader_frame.lift()
-        self.loader_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
+        self.loader_frame.place(relx=0.5, rely=0.5, anchor="center", width=100, height=100)
 
     def hide_loader(self):
         """Hide the loader"""
@@ -507,7 +516,7 @@ class ScreenshotApp:
     
     def capture_active_window(self):
         self.is_capturing = True
-        self.show_loader()  # Show loader when capture starts
+        self.show_loader()  # Show loader centered on the screen
 
         try:
             self.root.withdraw()
@@ -802,7 +811,7 @@ class ScreenshotApp:
         self.root.destroy()
         
     def make_api_call(self, payload):
-        self.show_loader()  # Show loader when API call starts
+        self.show_loader()  # Show loader centered on the screen
         try:
             url = "http://localhost:8001/v1/chat"
             headers = {
