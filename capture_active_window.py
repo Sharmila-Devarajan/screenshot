@@ -393,15 +393,15 @@ class ScreenshotApp:
     
     def create_loader(self, parent):
         """Create a localized loader overlay with a spinning animation centered on the screen"""
-        self.loader_frame = tk.Frame(parent, bg="#333333", relief="solid", bd=2)
+        self.loader_frame = tk.Frame(parent, bg="#2D617F", relief="solid", bd=2)
         self.loader_frame.place(relx=0.5, rely=0.5, anchor="center", width=100, height=100)
 
-        self.spinner_label = ttk.Label(self.loader_frame, background="#333333")
+        self.spinner_label = ttk.Label(self.loader_frame, background="#2D617F")
         self.spinner_label.pack(expand=True)
 
         # Create spinning animation
         self.spinner_images = [
-            ImageTk.PhotoImage(Image.new("RGB", (20, 20), (255, 255, 255)).rotate(angle))
+            ImageTk.PhotoImage(Image.new("RGB", (50, 50), (255, 255, 255)).rotate(angle))
             for angle in range(0, 360, 30)
         ]
         self.spinner_cycle = cycle(self.spinner_images)
@@ -418,7 +418,7 @@ class ScreenshotApp:
         if not hasattr(self, "loader_frame"):
             self.create_loader(self.root)  # Use the root window as the parent
         self.loader_frame.lift()
-        self.loader_frame.place(relx=0.5, rely=0.5, anchor="center", width=30, height=30)
+        self.loader_frame.place(relx=0.5, rely=0.5, anchor="center", width=60, height=60)
 
     def hide_loader(self):
         """Hide the loader"""
@@ -729,7 +729,7 @@ class ScreenshotApp:
         text_frame.pack(fill=tk.BOTH, expand=True)
 
         # --- Scrollbars ---
-        v_scrollbar = ttk.Scrollbar(text_frame, orient="vertical")
+        # v_scrollbar = ttk.Scrollbar(text_frame, orient="vertical")
         
         # --- Response Content with Markdown Formatting ---
         response_content = MarkdownText(
@@ -737,24 +737,25 @@ class ScreenshotApp:
             wrap=tk.WORD,  # Wrap words to avoid horizontal scrolling unless necessary
             height=20,  # Default height
             width=70,
-            font=("Courier", 10),
-            bg="#87CEFA",
+            font=("Segoe UI", 10),
+            bg="#DBEAF7",
             relief=tk.FLAT,
             padx=10,
             pady=5,
-            yscrollcommand=v_scrollbar.set,
+            # yscrollcommand=v_scrollbar.set,
           
         )
         
         # Insert Markdown text
         response_content.insert_markdown(response_text)
+        
         response_content.config(state=tk.DISABLED)  # Make it read-only
 
         # Pack elements
-        v_scrollbar.config(command=response_content.yview)
+        # v_scrollbar.config(command=response_content.yview)
       
         response_content.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        # v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
       
         # --- Screenshot Below ---
         img = screenshot_data.get("image")
