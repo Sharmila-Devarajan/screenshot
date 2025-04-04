@@ -390,6 +390,32 @@ class ScreenshotApp:
         if not self.is_capturing:
             self.handle_capture()
     
+    def create_loader(self):
+        """Create a loader overlay"""
+        self.loader_frame = tk.Frame(self.root, bg="#000000")
+        self.loader_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
+
+        loader_label = ttk.Label(
+            self.loader_frame,
+            text="Processing...",
+            font=("Arial", 16, "bold"),
+            foreground=self.colors["text_light"],
+            background="#000000"
+        )
+        loader_label.pack(expand=True)
+
+    def show_loader(self):
+        """Show the loader"""
+        if not hasattr(self, "loader_frame"):
+            self.create_loader()
+        self.loader_frame.lift()
+        self.loader_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
+
+    def hide_loader(self):
+        """Hide the loader"""
+        if hasattr(self, "loader_frame"):
+            self.loader_frame.place_forget()
+
     def handle_capture(self):
         if self.is_capturing:
             return
@@ -481,7 +507,8 @@ class ScreenshotApp:
     
     def capture_active_window(self):
         self.is_capturing = True
-        
+        self.show_loader()  # Show loader when capture starts
+
         try:
             self.root.withdraw()
             self.button_window.withdraw()
@@ -495,6 +522,7 @@ class ScreenshotApp:
                 self.button_window.deiconify()
                 self.update_status("No active window detected or captured our own app", "info")
                 self.is_capturing = False
+                self.hide_loader()  # Hide loader on failure
                 return
             
             # Take high-resolution screenshot
@@ -506,6 +534,7 @@ class ScreenshotApp:
                     self.button_window.deiconify()
                     self.update_status("Invalid window dimensions detected", "error")
                     self.is_capturing = False
+                    self.hide_loader()  # Hide loader on failure
                     return
                 
                 screenshot = pyautogui.screenshot(region=(x, y, width, height))
@@ -601,21 +630,6 @@ class ScreenshotApp:
             
             # Comment out the API call and use mock response
             result = self.make_api_call(payload_json)
-            # Mock response for API call with markdown formatting
-#             mock_response = """# Inspector's Notes
-# **Date**: April 4, 2025
-# **Condition**: Good
-
-# ## Engine Description
-# This is an example of *formatted markdown* text that will be displayed properly in the app.
-
-# ### Details
-# - High performance engine
-# - Recently serviced
-# - **No leaks detected**
-
-# [More information](https://example.com)
-# """
             
             self.save_payload_to_file(payload_json)
             
@@ -645,6 +659,7 @@ class ScreenshotApp:
         
         finally:
             self.is_capturing = False
+            self.hide_loader()  # Hide loader when capture is complete
     
     def compress_image(self, image, quality=40, max_size=1024):
         """Compress image to reduce file size while maintaining quality"""
@@ -787,8 +802,7 @@ class ScreenshotApp:
         self.root.destroy()
         
     def make_api_call(self, payload):
-        # This function is commented out - using mock response instead
-        
+        self.show_loader()  # Show loader when API call starts
         try:
             url = "http://localhost:8001/v1/chat"
             headers = {
@@ -803,11 +817,11 @@ class ScreenshotApp:
         except requests.exceptions.RequestException as e:
             print("The error is:", str(e))
             return None
-        
-        # mock_response = "This is a mock response since the API is non-functional."
-        # return mock_response
+
+        finally:
+            self.hide_loader()  # Hide loader when API call is complete
 
 if __name__ == "__main__":
     root = tk.Tk()
     app = ScreenshotApp(root)
-    root.mainloop()  
+    root.mainloop()
