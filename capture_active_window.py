@@ -232,12 +232,8 @@ class ScreenshotApp:
         screenshots_frame = ttk.LabelFrame(main_frame, text="Captured Screenshots", padding=10)
         screenshots_frame.pack(fill=tk.BOTH, expand=True)
         
-        self.canvas_frame = ttk.Frame(screenshots_frame)
-        self.canvas_frame.pack(fill=tk.BOTH, expand=True)
-        
-        self.canvas = tk.Canvas(self.canvas_frame, bg="#ffffff")
-        self.scrollbar = ttk.Scrollbar(self.canvas_frame, orient=tk.VERTICAL, command=self.canvas.yview)
-        
+        self.canvas = tk.Canvas(screenshots_frame, bg="#ffffff")
+        self.scrollbar = ttk.Scrollbar(screenshots_frame, orient=tk.VERTICAL, command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -247,29 +243,27 @@ class ScreenshotApp:
         self.screenshots_container_id = self.canvas.create_window(
             (0, 0), 
             window=self.screenshots_container, 
-            anchor=tk.NW,
-            width=self.canvas.winfo_width()
+            anchor=tk.NW
         )
         
         self.canvas.bind("<Configure>", self.on_canvas_configure)
         self.screenshots_container.bind("<Configure>", self.on_frame_configure)
-        
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill=tk.X, pady=(10, 0))
-        
-        open_folder_button = ttk.Button(
-            button_frame,
-            text="Open Screenshots Folder",
-            command=self.open_screenshots_folder
-        )
-        open_folder_button.pack(side=tk.RIGHT)
-    
+
+        # Bind mouse wheel scrolling
+        self.canvas.bind_all("<MouseWheel>", self.on_mouse_wheel)
+
     def on_canvas_configure(self, event):
+        """Adjust the canvas width to match the container"""
         self.canvas.itemconfig(self.screenshots_container_id, width=event.width)
-    
+
     def on_frame_configure(self, event):
+        """Update the scroll region to encompass the entire frame"""
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-    
+
+    def on_mouse_wheel(self, event):
+        """Scroll the canvas vertically when the mouse wheel is used"""
+        self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
+
     def create_floating_button(self):
         self.button_window = tk.Toplevel(self.root)
         self.button_window.overrideredirect(True)
