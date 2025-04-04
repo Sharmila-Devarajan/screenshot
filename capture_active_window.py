@@ -114,7 +114,7 @@ class ScreenshotApp:
     def __init__(self, root):
         
         self.root = root
-        self.root.title("Taro san")
+        self.root.title("Taro ")
         self.root.geometry("1024x768")
         self.root.resizable(True, True)
 
@@ -211,7 +211,7 @@ class ScreenshotApp:
         
         title_label = ttk.Label(
             main_frame, 
-            text="Taro san", 
+            text="Taro ", 
             font=("Arial", 18, "bold"),
             foreground=self.colors["primary"]
         )
@@ -418,7 +418,7 @@ class ScreenshotApp:
         if not hasattr(self, "loader_frame"):
             self.create_loader(self.root)  # Use the root window as the parent
         self.loader_frame.lift()
-        self.loader_frame.place(relx=0.5, rely=0.5, anchor="center", width=100, height=100)
+        self.loader_frame.place(relx=0.5, rely=0.5, anchor="center", width=30, height=30)
 
     def hide_loader(self):
         """Hide the loader"""
@@ -526,7 +526,7 @@ class ScreenshotApp:
             
             window_title, window_bounds = self.get_window_info()
             
-            if "Taro san" in window_title or not window_title:
+            if "Taro " in window_title or not window_title:
                 self.root.deiconify()
                 self.button_window.deiconify()
                 self.update_status("No active window detected or captured our own app", "info")
@@ -716,30 +716,46 @@ class ScreenshotApp:
         
         # Check if API response exists
         response_text = screenshot_data.get("api_response", "No API response available")
-        
+
         frame = ttk.Frame(self.screenshots_container)
         frame.pack(fill=tk.X, pady=(0, 15), padx=10)
-        
+
         # --- API Response Card ---
         response_card = ttk.Frame(frame, relief="solid", borderwidth=1, padding=10)
         response_card.pack(fill=tk.X, padx=5, pady=5)
-       
+
+        # --- Scrollable Text Container ---
+        text_frame = ttk.Frame(response_card)
+        text_frame.pack(fill=tk.BOTH, expand=True)
+
+        # --- Scrollbars ---
+        v_scrollbar = ttk.Scrollbar(text_frame, orient="vertical")
+        
         # --- Response Content with Markdown Formatting ---
         response_content = MarkdownText(
-            response_card,
-            wrap=tk.WORD,
-            height=10,
+            text_frame,
+            wrap=tk.WORD,  # Wrap words to avoid horizontal scrolling unless necessary
+            height=20,  # Default height
             width=70,
             font=("Courier", 10),
-            bg="#f8f9fa",
+            bg="#87CEFA",
             relief=tk.FLAT,
             padx=10,
-            pady=5
+            pady=5,
+            yscrollcommand=v_scrollbar.set,
+          
         )
+        
+        # Insert Markdown text
         response_content.insert_markdown(response_text)
         response_content.config(state=tk.DISABLED)  # Make it read-only
-        response_content.pack(fill=tk.BOTH, expand=True)
-        
+
+        # Pack elements
+        v_scrollbar.config(command=response_content.yview)
+      
+        response_content.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
+        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+      
         # --- Screenshot Below ---
         img = screenshot_data.get("image")
         if img:
