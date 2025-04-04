@@ -15,11 +15,105 @@ import uuid
 import requests
 import re
 
+class MarkdownText(tk.Text):
+    """A Text widget with improved Markdown rendering capabilities"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tag_configure("bold", font=("Courier", 10, "bold"))
+        self.tag_configure("italic", font=("Courier", 10, "italic"))
+        self.tag_configure("heading1", font=("Courier", 14, "bold"))
+        self.tag_configure("heading2", font=("Courier", 12, "bold"))
+        self.tag_configure("heading3", font=("Courier", 11, "bold"))
+        self.tag_configure("code", background="#f0f0f0", font=("Courier", 9))
+        self.tag_configure("bullet", lmargin1=20, lmargin2=30)
+        self.tag_configure("link", foreground="blue", underline=1)
+
+    def insert_markdown(self, text):
+        """Parse and insert markdown text"""
+        # Clear current content
+        self.delete(1.0, tk.END)
+        
+        # Process lines
+        code_block = False
+        bullet_list = False
+        
+        for line in text.split('\n'):
+            # Code blocks
+            if line.strip().startswith('```'):
+                code_block = not code_block
+                if not code_block:  # End of code block
+                    self.insert(tk.END, '\n')
+                continue
+            
+            if code_block:
+                self.insert(tk.END, line + '\n', "code")
+                continue
+            
+            # Headings
+            if line.strip().startswith('# '):
+                self.insert(tk.END, line[2:] + '\n', "heading1")
+                continue
+            elif line.strip().startswith('## '):
+                self.insert(tk.END, line[3:] + '\n', "heading2")
+                continue
+            elif line.strip().startswith('### '):
+                self.insert(tk.END, line[4:] + '\n', "heading3")
+                continue
+            
+            # Bullet lists
+            if line.strip().startswith('- ') or line.strip().startswith('* '):
+                bullet_list = True
+                self.insert(tk.END, '• ' + line[2:].strip() + '\n', "bullet")
+                continue
+            
+            # Process inline formatting
+            self.process_inline_markdown(line)
+            self.insert(tk.END, '\n')
+            bullet_list = False
+    
+    def process_inline_markdown(self, line):
+        """Process inline markdown elements like bold, italic, and links"""
+        line_remaining = line
+        
+        while line_remaining:
+            # Find the first occurrence of each pattern
+            bold_match = re.search(r'\*\*(.*?)\*\*', line_remaining)
+            italic_match = re.search(r'\*(.*?)\*', line_remaining)
+            link_match = re.search(r'\[(.*?)\]\((.*?)\)', line_remaining)
+            
+            # Determine which pattern comes first, if any
+            matches = []
+            if bold_match:
+                matches.append(('bold', bold_match.start(), bold_match.end(), bold_match.group(1)))
+            if italic_match:
+                matches.append(('italic', italic_match.start(), italic_match.end(), italic_match.group(1)))
+            if link_match:
+                matches.append(('link', link_match.start(), link_match.end(), link_match.group(1)))
+            
+            # If no matches, insert remaining text and exit
+            if not matches:
+                self.insert(tk.END, line_remaining)
+                break
+            
+            # Sort matches by start position
+            matches.sort(key=lambda x: x[1])
+            match_type, start, end, content = matches[0]
+            
+            # Insert text before the match
+            if start > 0:
+                self.insert(tk.END, line_remaining[:start])
+            
+            # Insert matched content with appropriate tag
+            self.insert(tk.END, content, match_type)
+            
+            # Update remaining line
+            line_remaining = line_remaining[end:]
+
 class ScreenshotApp:
     def __init__(self, root):
         
         self.root = root
-        self.root.title("Taro")
+        self.root.title("Taro san")
         self.root.geometry("1024x768")
         self.root.resizable(True, True)
 
@@ -47,6 +141,7 @@ class ScreenshotApp:
         
         self.screenshots = []
         self.is_capturing = False
+        self.drag_started = False  # To track if we're dragging
         self.status_message = ""
         self.status_type = "info"
         
@@ -115,7 +210,7 @@ class ScreenshotApp:
         
         title_label = ttk.Label(
             main_frame, 
-            text="Taro", 
+            text="Taro san", 
             font=("Arial", 18, "bold"),
             foreground=self.colors["primary"]
         )
@@ -179,10 +274,20 @@ class ScreenshotApp:
         self.button_window.overrideredirect(True)
         self.button_window.attributes('-topmost', True)
         
-        self.button_window.attributes('-transparentcolor', '#f0f0f0')
+        # Change from transparent to a normal window with configurable background
+        # self.button_window.attributes('-transparentcolor', '#f0f0f0')
         
-        button_frame = tk.Frame(self.button_window, bg="#f0f0f0")
+        # Create a frame with black border that will act as the draggable area
+        button_frame = tk.Frame(
+            self.button_window,
+            bg="black",  # Black background for the outer frame
+            bd=4  # Border width (thickness of the black outline)
+        )
         button_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Inner frame for the actual button
+        inner_frame = tk.Frame(button_frame, bg=self.colors["accent"])
+        inner_frame.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
         
         try:
             image_path = "capture.png"
@@ -193,7 +298,7 @@ class ScreenshotApp:
                 self.button_photo = ImageTk.PhotoImage(button_img)
                 
                 capture_button = tk.Button(
-                    button_frame,
+                    inner_frame,
                     image=self.button_photo,
                     bg=self.colors["accent"],
                     relief=tk.RAISED,
@@ -201,7 +306,7 @@ class ScreenshotApp:
                 )
             else:
                 capture_button = tk.Button(
-                    button_frame,
+                    inner_frame,
                     text="📷",
                     font=("Arial", 14, "bold"),
                     bg=self.colors["accent"],
@@ -213,7 +318,7 @@ class ScreenshotApp:
                 )
         except Exception as e:
             capture_button = tk.Button(
-                button_frame,
+                inner_frame,
                 text="📷",
                 font=("Arial", 14, "bold"),
                 bg=self.colors["accent"],
@@ -228,30 +333,43 @@ class ScreenshotApp:
         
         self.position_floating_button()
         
-        capture_button.bind("<ButtonPress-1>", self.start_move)
-        capture_button.bind("<ButtonRelease-1>", self.stop_move)
-        capture_button.bind("<B1-Motion>", self.do_move)
-    
+        # Bind drag events to the button_frame (black border) for dragging
+        button_frame.bind("<ButtonPress-1>", self.start_move)
+        button_frame.bind("<ButtonRelease-1>", self.stop_move)
+        button_frame.bind("<B1-Motion>", self.do_move)
+        
+        # Also bind events to inner_frame to ensure we can drag from any part of the window
+        inner_frame.bind("<ButtonPress-1>", self.start_move)
+        inner_frame.bind("<ButtonRelease-1>", self.stop_move)
+        inner_frame.bind("<B1-Motion>", self.do_move)
+        
+        # The actual button only handles click events, not drag events
+        capture_button.bind("<ButtonPress-1>", self.button_press)
+        capture_button.bind("<ButtonRelease-1>", self.button_release)
+
     def position_floating_button(self):
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         
-        button_width = 60
-        button_height = 60
+        # Increase button size to account for the border
+        button_width = 70
+        button_height = 70
         
         x_position = screen_width - button_width - 40
         y_position = screen_height - button_height - 40
         
         self.button_window.geometry(f"{button_width}x{button_height}+{x_position}+{y_position}")
-    
+
     def start_move(self, event):
         self.x = event.x
         self.y = event.y
-    
+        self.drag_started = True  # We're always dragging when using the border
+
     def stop_move(self, event):
         self.x = None
         self.y = None
-    
+        self.drag_started = False
+
     def do_move(self, event):
         if self.is_capturing:
             return
@@ -261,6 +379,16 @@ class ScreenshotApp:
         x = self.button_window.winfo_x() + deltax
         y = self.button_window.winfo_y() + deltay
         self.button_window.geometry(f"+{x}+{y}")
+
+    # Add new methods for button press and release specifically
+    def button_press(self, event):
+        # Just for the actual button - no drag logic here
+        pass
+
+    def button_release(self, event):
+        # Only capture when the button itself is clicked
+        if not self.is_capturing:
+            self.handle_capture()
     
     def handle_capture(self):
         if self.is_capturing:
@@ -362,7 +490,7 @@ class ScreenshotApp:
             
             window_title, window_bounds = self.get_window_info()
             
-            if "Taro" in window_title or not window_title:
+            if "Taro san" in window_title or not window_title:
                 self.root.deiconify()
                 self.button_window.deiconify()
                 self.update_status("No active window detected or captured our own app", "info")
@@ -473,8 +601,21 @@ class ScreenshotApp:
             
             # Comment out the API call and use mock response
             result = self.make_api_call(payload_json)
-            # Mock response for API call
-            # mock_response = "Since API is non functional, this is a mock response. Here in future OpenAI response is displayed in markdown format. Congrats !! Keep Going "
+            # Mock response for API call with markdown formatting
+#             mock_response = """# Inspector's Notes
+# **Date**: April 4, 2025
+# **Condition**: Good
+
+# ## Engine Description
+# This is an example of *formatted markdown* text that will be displayed properly in the app.
+
+# ### Details
+# - High performance engine
+# - Recently serviced
+# - **No leaks detected**
+
+# [More information](https://example.com)
+# """
             
             self.save_payload_to_file(payload_json)
             
@@ -548,49 +689,36 @@ class ScreenshotApp:
     
     def add_screenshot_to_ui(self, index):
         screenshot_data = self.screenshots[index]
-
-        # Check if API response exists, otherwise skip this entry
-        response_text = screenshot_data.get("api_response")
-        if response_text is None:
-            return  # Skip this entry if no API response
-
+        
+        # Check if API response exists
+        response_text = screenshot_data.get("api_response", "No API response available")
+        
         frame = ttk.Frame(self.screenshots_container)
         frame.pack(fill=tk.X, pady=(0, 15), padx=10)
-
-        # --- API Response Card with Border and Padding ---
-        response_card = ttk.Frame(frame,padding=10, style="ResponseCard.TFrame")
+        
+        # --- API Response Card ---
+        response_card = ttk.Frame(frame, relief="solid", borderwidth=1, padding=10)
         response_card.pack(fill=tk.X, padx=5, pady=5)
-
        
-     
-        # --- Response Box (Scrollable Inside) ---
-        response_container = tk.Frame(response_card, bg="#f8f9fa", padx=10, pady=5, bd=2, relief="ridge")
-        response_container.pack(fill=tk.X, pady=5)
-
-        text_scroll = tk.Scrollbar(response_container, orient="vertical")
-        response_content = tk.Text(
-            response_container,
-            wrap="word",
-            font=("Segoe UI", 10),
-            bg="#eef2f7",  # Light Blue Background
-            fg="#333",  # Dark Gray Text
+        # --- Response Content with Markdown Formatting ---
+        response_content = MarkdownText(
+            response_card,
+            wrap=tk.WORD,
+            height=10,
+            width=70,
+            font=("Courier", 10),
+            bg="#f8f9fa",
+            relief=tk.FLAT,
             padx=10,
-            pady=5,
-            height=15,
-            width=80,
-            bd=0,
-            relief="flat"
+            pady=5
         )
-        response_content.insert("1.0", json.dumps(response_text, indent=2) if isinstance(response_text, dict) else response_text)
-        response_content.config(state="disabled", yscrollcommand=text_scroll.set)
-        text_scroll.config(command=response_content.yview)
-
-        text_scroll.pack(side="right", fill="y")
-        response_content.pack(side="left", fill="both", expand=True)
-
+        response_content.insert_markdown(response_text)
+        response_content.config(state=tk.DISABLED)  # Make it read-only
+        response_content.pack(fill=tk.BOTH, expand=True)
+        
         # --- Screenshot Below ---
         img = screenshot_data.get("image")
-        if img:  # Ensure there's an image before proceeding
+        if img:
             max_width = 600
             width, height = img.size
             ratio = min(max_width / width, 1.0)
@@ -599,30 +727,35 @@ class ScreenshotApp:
             thumbnail = img.resize((new_width, new_height), Image.LANCZOS)
             photo = ImageTk.PhotoImage(thumbnail)
             screenshot_data["photo"] = photo
-
-            image_label = ttk.Label(frame, image=photo)
+            
+            image_frame = ttk.Frame(frame, borderwidth=1, relief="solid")
+            image_frame.pack(pady=5)
+            
+            image_label = ttk.Label(image_frame, image=photo)
             image_label.image = photo
-            image_label.pack(pady=5)
-
+            image_label.pack()
+        
         # --- Header for Open Button ---
         title_frame = ttk.Frame(frame)
         title_frame.pack(fill=tk.X)
-
+        
         title_label = ttk.Label(
             title_frame,
             text=f"{screenshot_data['title']} - {screenshot_data['timestamp']}",
             font=("Arial", 10, "bold"),
+            foreground=self.colors["primary"]
         )
         title_label.pack(side=tk.LEFT, pady=5)
-
+        
         open_button = ttk.Button(
             title_frame,
-            text="Open",
+            text="Open Image",
             command=lambda path=screenshot_data["path"]: self.open_screenshot(path),
         )
         open_button.pack(side=tk.RIGHT, padx=5)
-
+        
         self.on_frame_configure(None)
+    
     def open_screenshot(self, path):
         try:
             if platform.system() == 'Windows':
@@ -635,6 +768,7 @@ class ScreenshotApp:
                 subprocess.call(['xdg-open', path])
         except Exception as e:
             self.update_status(f"Error opening screenshot: {str(e)}", "error")
+
             
     def open_screenshots_folder(self):
         try:
@@ -654,7 +788,7 @@ class ScreenshotApp:
         
     def make_api_call(self, payload):
         # This function is commented out - using mock response instead
-       
+        
         try:
             url = "http://localhost:8001/v1/chat"
             headers = {
@@ -669,9 +803,11 @@ class ScreenshotApp:
         except requests.exceptions.RequestException as e:
             print("The error is:", str(e))
             return None
-       
-     
+        
+        # mock_response = "This is a mock response since the API is non-functional."
+        # return mock_response
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = ScreenshotApp(root)
-    root.mainloop()
+    root.mainloop()  
